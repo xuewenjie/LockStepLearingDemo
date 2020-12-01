@@ -76,6 +76,7 @@ namespace Network
             try
             {
                 mTcp.Listen();
+                
                 mTcp.onReceive += OnReceive;
                 mTcp.onAccept += OnAccept;
                 onStart();
@@ -189,6 +190,8 @@ namespace Network
         void OnAccept(Socket s)
         {
             Session c = new Session(numberOfClient++, s, this);
+            c.onReceive += OnReceive;
+
             lock (mSessionList)
             {
                 mSessionList.Add(c);
@@ -200,6 +203,8 @@ namespace Network
             }
           
         }
+
+
 
         public void RemoveSession(Session c)
         {

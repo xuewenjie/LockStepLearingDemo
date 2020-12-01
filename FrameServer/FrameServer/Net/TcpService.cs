@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FrameServer;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -40,18 +41,18 @@ namespace Network
             Start();
 
             mAcceptThread = new Thread(AcceptThread);
-            mReceiveThread = new Thread(ReceiveThread);
+            //mReceiveThread = new Thread(ReceiveThread);
             mSendThread = new Thread(SendThread);
 
             mAcceptThread.Start();
-            mReceiveThread.Start();
+            //mReceiveThread.Start();
             mSendThread.Start();
 
 
             return true;
         }
 
-        public void  Close()
+        public void Close()
         {
             Stop();
 
@@ -92,6 +93,7 @@ namespace Network
                 try
                 {
                     Socket s = AcceptSocket();
+                    //Socket s = AcceptTcpClient();
                     if (s != null)
                     {
                         if (onAccept != null)
@@ -169,6 +171,7 @@ namespace Network
                         {
                             onReceive(new MessageInfo(message, c));
                         }
+                        
 
                     }
                     catch (SocketException e)

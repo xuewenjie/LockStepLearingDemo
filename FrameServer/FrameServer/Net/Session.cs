@@ -1,5 +1,5 @@
-﻿using System;
-using System.Diagnostics;
+﻿using FrameServer;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -16,6 +16,7 @@ namespace Network
         private NetworkService mService;
         private Socket mSocket;
         private Thread mActiveThread;
+        private Thread mReceiveThread;
 
         public Socket socket { get { return mSocket; } }
         public NetworkService service { get { return mService; } }
@@ -23,6 +24,8 @@ namespace Network
         //private KCP mKCP;
         private uint mNextUpdateTime = 0;
         private static readonly DateTime utc_time = new DateTime(1970, 1, 1);
+
+        public event OnReceiveHandler onReceive;
 
         private static uint current
         {
@@ -46,11 +49,85 @@ namespace Network
 
             mActiveThread.Start();
 
+            mReceiveThread = new Thread(ReceiveThread);
+            mReceiveThread.Start();
             //if (mService.kcp!=null)
             //{
             //    mKCP = new KCP((uint)id, OnSendKcp);
             //    mKCP.NoDelay(1, 10, 2, 1);
             //}
+        }
+
+        private void ReceiveThread()
+        {
+            while (IsConnected)
+            {
+                Session c = this;
+                if (c == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    if (c.IsConnected == false)
+                    {
+                        continue;
+                    }
+
+                    int receiveSize = c.socket.Receive(MessageBuffer.head, MessageBuffer.MESSAGE_HEAD_SIZE, SocketFlags.None);
+                    if (receiveSize == 0)
+                    {
+                        continue;
+                    }
+
+                    if (receiveSize != MessageBuffer.MESSAGE_HEAD_SIZE)
+                    {
+                        continue;
+                    }
+
+                    if (MessageBuffer.IsValid(MessageBuffer.head) == false)
+                    {
+                        continue;
+                    }
+                    int bodySize = 0;
+                    if (MessageBuffer.Decode(MessageBuffer.head, MessageBuffer.MESSAGE_BODY_SIZE_OFFSET, ref bodySize) == false)
+                    {
+                        continue;
+                    }
+                    MessageBuffer message = new MessageBuffer(MessageBuffer.MESSAGE_HEAD_SIZE + bodySize);
+
+                    Array.Copy(MessageBuffer.head, 0, message.buffer, 0, MessageBuffer.head.Length);
+
+                    if (bodySize > 0)
+                    {
+                        int receiveBodySize = c.socket.Receive(message.buffer, MessageBuffer.MESSAGE_BODY_OFFSET, bodySize, SocketFlags.None);
+
+                        if (receiveBodySize != bodySize)
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (onReceive != null)
+                    {
+                        onReceive(new MessageInfo(message, c));
+                    }
+
+
+                }
+                catch (SocketException e)
+                {
+                    mService.Debug(e.Message);
+                    c.Disconnect();
+                }
+                catch (Exception e)
+                {
+                    mService.CatchException(e);
+                    throw e;
+                }
+
+                Thread.Sleep(1);
+            }
         }
 
         void ActiveThread()
@@ -124,6 +201,9 @@ namespace Network
 
             mActiveThread.Abort();
             mActiveThread = null;
+
+            mReceiveThread.Abort();
+            mReceiveThread = null;
 
         }
 
