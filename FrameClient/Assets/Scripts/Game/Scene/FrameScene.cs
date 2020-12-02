@@ -51,7 +51,7 @@ public class FrameScene : GameScene, IReceiverHandler
 
         if(Time.frameCount % 30 ==0 && PlayerManager.GetSingleton().mReady)
         {
-            Debug.Log("GM_PING_CS");
+            //Debug.Log("GM_PING_CS");
             GM_Request sendData = SharedValue<GM_Request>.sData;
             sendData.id = PlayerManager.GetSingleton().mRoleId;
             mPingTime = DateTime.Now.Ticks;
@@ -427,12 +427,12 @@ public class FrameScene : GameScene, IReceiverHandler
         mCurrentFrame = recvData.frame;
 
        
-        //不打印那么多信息
-        if (recvData.command.Count > 0 || recvData.frame % 30 == 0)
-        {
-            Debug.Log("Receive frame:" + recvData.frame + " command:" + recvData.command.Count);
-            Debug.Log(recvData.frametime + "," + mFrameTime + "," + (mFrameTime - recvData.frametime));
-        }
+        ////不打印那么多信息
+        //if (recvData.command.Count > 0 || recvData.frame % 30 == 0)
+        //{
+        //    Debug.Log("Receive frame:" + recvData.frame + " command:" + recvData.command.Count);
+        //    Debug.Log(recvData.frametime + "," + mFrameTime + "," + (mFrameTime - recvData.frametime));
+        //}
 
         mFrameTime = recvData.frametime;
 
@@ -537,7 +537,7 @@ public class FrameScene : GameScene, IReceiverHandler
     {
         CommandID id = (CommandID)cmd.type;
         if (Debuger.ENABLELOG)
-            Debug.Log("执行关键帧 = " + id.ToString() + ",frametime = "+ cmd.time);
+            Debug.Log("当前帧:"+ mCurrentFrame+"执行关键帧 = " + id.ToString() + ",frame = "+ cmd.frame + ",time = " + cmd.time);
 
        
 
@@ -666,6 +666,9 @@ public class FrameScene : GameScene, IReceiverHandler
 
             //byte[] bytes = JsonSerializerUtil.ToJsonByte<GM_Frame>(sendData);
             //GM_Frame sendData1 = JsonSerializerUtil.FromJsonByte<GM_Frame>(bytes);
+
+            if (Debuger.ENABLELOG)
+                Debug.Log("当前帧:" + mCurrentFrame + "发送关键帧 = " + cmd.id.ToString() + ",frame = " + cmd.frame + ",time = " + cmd.time);
 
             ClientService.GetSingleton().SendTcp(ClientID.Frame, MessageID.GM_FRAME_CS, sendData);
 

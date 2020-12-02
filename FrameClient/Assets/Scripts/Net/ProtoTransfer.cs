@@ -23,10 +23,15 @@ namespace Network
 
         public static Vector3 Get(GMPoint3D point)
         {
-            Vector3 vec = new Vector3();
-            vec.x = point.x / 10000f;
-            vec.y = point.y / 10000f;
-            vec.z = point.z / 10000f;
+            Vector3 vec = Vector3.zero;
+            if (point!=null)
+            {
+                vec.x = point.x / 10000f;
+                vec.y = point.y / 10000f;
+                vec.z = point.z / 10000f;
+            }
+            
+            
             return vec;
         }
 

@@ -10,7 +10,11 @@ namespace  Network
     {
         public static Point3D Get(GMPoint3D gmpoint)
         {
-            Point3D point = new Point3D(gmpoint.x, gmpoint.y, gmpoint.z);
+            Point3D point = new Point3D(0, 0, 0);
+            if (gmpoint!=null)
+            {
+                point = new Point3D(gmpoint.x, gmpoint.y, gmpoint.z);
+            }
             return point;
         }
 

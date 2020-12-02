@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using UnityEngine;
 
 namespace Network
 {
@@ -148,6 +149,7 @@ namespace Network
                 {
                     lock (mSendMessageQueue)
                     {
+                        
                         for (int i = 0; i < mSendMessageQueue.Count; ++i)
                         {
                             MessageBuffer message = mSendMessageQueue.Dequeue();
