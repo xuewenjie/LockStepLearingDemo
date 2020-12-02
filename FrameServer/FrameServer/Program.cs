@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using PBMessage;
 using Network;
+using System.Timers;
 
 namespace FrameServer
 {
@@ -11,18 +12,21 @@ namespace FrameServer
         static void Main(string[] args)
         {
             Program p = new Program();
+
             while (true)
             {
                 p.Update();
             }
+
         }
+        
 
         public const int TCP_PORT = 1255;
         public const int UDP_PORT = 1337;
 
        
 
-        public const int FRAME_INTERVAL = 33; //帧时间 毫秒
+        public const int FRAME_INTERVAL = 100; //帧时间 毫秒
 
         NetworkService mService;
 
@@ -83,6 +87,24 @@ namespace FrameServer
             mService.onDebug += OnDebug;
 
             mService.Start();
+
+            StartTimer();
+        }
+
+        void StartTimer()
+        {
+            //实例化Timer类，设置间隔时间为100毫秒；
+            System.Timers.Timer t = new System.Timers.Timer(100);
+            //到达时间的时候执行事件；
+            t.Elapsed += new System.Timers.ElapsedEventHandler(LogicFrame);
+            t.AutoReset = true;//设置是执行一次（false）还是一直执行(true)；
+            t.Enabled = true;//是否执行System.Timers.Timer.Elapsed事件；
+        }
+
+        private void LogicFrame(object sender, ElapsedEventArgs e)
+        {
+            mFrameTime += 1;
+            SendFrame();
         }
 
         /// <summary>
@@ -114,33 +136,40 @@ namespace FrameServer
             }
             return null;
         }
+
+        int _lastCmdTime_ms = 0;
+
         public void Update()
         {
+            
             mService.Update();
 
             if (mBegin)
             {
-                Thread.Sleep(1);
+                
+                
 
-                mFrameTime += 1;
+                //Thread.Sleep(1);
 
-                if (mMode == Mode.Optimistic)
-                {
-                    if (mFrameTime % FRAME_INTERVAL == 0)
-                    {
-                        SendFrame();
-                    }
-                }
+                ////mFrameTime += 1;
+
+                ////if (mMode == Mode.Optimistic)
+                ////{
+                    
+                ////    if (mFrameTime % FRAME_INTERVAL == 0)
+                ////    {
+                ////        SendFrame();
+                ////    }
+                ////}
             }
         }
-
-     
+        
 
 
         private void OnStart()
         {
             Debug.Log(string.Format("Server start success,mode={0} ip={1} tcp port={2} udp port={3}",mMode.ToString(), NetworkService.GetLocalIP(),TCP_PORT, UDP_PORT),ConsoleColor.Green);
-           
+            
         }
 
         private void OnAccept(Session c)
