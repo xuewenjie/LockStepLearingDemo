@@ -367,8 +367,15 @@ namespace PBMessage
   public partial class GM_Accept : global::ProtoBuf.IExtensible
   {
     public GM_Accept() {}
-    
-    private int _conv;
+
+        private int _roleId;
+        public int roleId
+        {
+            get { return _roleId; }
+            set { _roleId = value; }
+        }
+
+        private int _conv;
     [global::ProtoBuf.ProtoMember(1, IsRequired = true, Name=@"conv", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
     public int conv
     {
@@ -477,8 +484,10 @@ namespace PBMessage
   public partial class GMCommand : global::ProtoBuf.IExtensible
   {
     public GMCommand() {}
-    
-    private long _id;
+
+        public string eventType;
+
+        private long _id;
     [global::ProtoBuf.ProtoMember(1, IsRequired = true, Name=@"id", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
     public long id
     {
@@ -492,9 +501,9 @@ namespace PBMessage
       get { return _type; }
       set { _type = value; }
     }
-    private byte[] _data;
+    private string _data;
     [global::ProtoBuf.ProtoMember(3, IsRequired = true, Name=@"data", DataFormat = global::ProtoBuf.DataFormat.Default)]
-    public byte[] data
+    public string data
     {
       get { return _data; }
       set { _data = value; }
@@ -522,6 +531,7 @@ namespace PBMessage
   public partial class GM_Frame : global::ProtoBuf.IExtensible
   {
     public GM_Frame() {}
+
     
     private int _roleId;
     [global::ProtoBuf.ProtoMember(1, IsRequired = true, Name=@"roleId", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]

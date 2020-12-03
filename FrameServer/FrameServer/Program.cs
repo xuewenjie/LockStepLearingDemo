@@ -103,8 +103,12 @@ namespace FrameServer
 
         private void LogicFrame(object sender, ElapsedEventArgs e)
         {
-            mFrameTime += 1;
-            SendFrame();
+            if (mBegin)
+            {
+                mFrameTime += 1;
+                SendFrame();
+            }
+               
         }
 
         /// <summary>
@@ -185,9 +189,9 @@ namespace FrameServer
             c.SendTcp(message);
         }
 
-        private void OnConnect(Session c)
+        private void OnConnect(Session c,int roleId)
         {
-            User user = new User(mRoleId++, c);
+            User user = new User(roleId, c);
             mUserList.Add(user);
 
             Debug.Log(string.Format("{0} roleid={1} tcp={2}, udp={3} connected! count={4}", c.id, user.roleid, c.tcpAdress, c.udpAdress, mUserList.Count),ConsoleColor.Yellow);
@@ -236,7 +240,7 @@ namespace FrameServer
                         //ProtoTransfer.DeserializeProtoBuf<GM_Accept>(msg);
                         if (recvData.conv == client.id)
                         {
-                            OnConnect(client);
+                            OnConnect(client,recvData.roleId);
                         }
                     }
                     break;
@@ -406,30 +410,30 @@ namespace FrameServer
         {
             //服务器添加命令
 
-            for (int i = 0; i < 3; ++i)
-            {
+            //for (int i = 0; i < 3; ++i)
+            //{
 
-                Monster monster = new Monster(mMonsterId++);
-                mMonsterList.Add(monster);
+            //    Monster monster = new Monster(mMonsterId++);
+            //    mMonsterList.Add(monster);
 
-                monster.mPlayerInfo.name = "Server " + monster.roleid;
-                monster.mPlayerInfo.type = 2;//Boss
+            //    monster.mPlayerInfo.name = "Server " + monster.roleid;
+            //    monster.mPlayerInfo.type = 2;//Boss
 
-                monster.position.x = ((i + 1) * (i % 2 == 0 ? -3 : 3)) * 10000;
-                monster.position.y = 1 * 10000;
-                monster.position.z = -10 * 10000;
+            //    monster.position.x = ((i + 1) * (i % 2 == 0 ? -3 : 3)) * 10000;
+            //    monster.position.y = 1 * 10000;
+            //    monster.position.z = -10 * 10000;
 
-                CMD_CreateMonster data = new CMD_CreateMonster();
-                data.roleId = SERVER_ROLEID;
-                data.player = ProtoTransfer.Get(monster.mPlayerInfo);
-                data.position = ProtoTransfer.Get(monster.position);
-                data.direction = ProtoTransfer.Get(monster.direction);
+            //    CMD_CreateMonster data = new CMD_CreateMonster();
+            //    data.roleId = SERVER_ROLEID;
+            //    data.player = ProtoTransfer.Get(monster.mPlayerInfo);
+            //    data.position = ProtoTransfer.Get(monster.position);
+            //    data.direction = ProtoTransfer.Get(monster.direction);
 
-                Command cmd = new Command();
-                cmd.Set(CommandID.CREATE_MONSTER, data);
+            //    Command cmd = new Command();
+            //    cmd.Set(CommandID.CREATE_MONSTER, data);
 
-                AddCommand(cmd);
-            }
+            //    AddCommand(cmd);
+            //}
 
         }
 
@@ -553,7 +557,7 @@ namespace FrameServer
                     for (int i = 0, count = it.Current.Value.Count; i < count; ++i)
                     {
                         GMCommand cmd = ProtoTransfer.Get(it.Current.Value[i]);
-
+                        cmd.eventType = it.Current.Value[i].eventType;
                         sendData.command.Add(cmd);
                     }
                 }
@@ -586,6 +590,7 @@ namespace FrameServer
             {
                 //乐观模式以服务器收到的时间为准
                 Command frameData = new Command(recvData.command[i].frame, recvData.command[i].type, recvData.command[i].data, mFrameTime);
+                frameData.eventType = recvData.command[i].eventType;
                 if (mFrameDic[mCurrentFrame].ContainsKey(roleId) == false)
                 {
                     mFrameDic[mCurrentFrame].Add(roleId, new List<Command>());

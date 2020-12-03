@@ -8,17 +8,19 @@ namespace FrameServer
         private long mID;
         private long mFrame;
         private int mType;
-        private byte[] mData;
+        private string mData;
         private long mTime = 0;
+
+        public string eventType;
 
         public long id { get { return mID; } }
         public long frame { get { return mFrame;} }
         public int type { get { return mType; } }
-        public byte[] data { get { return mData; } }
+        public string data { get { return mData; } }
         public long time { get { return mTime; } }
 
         public Command() { }
-        public Command(long frame, int type,byte[] data,long time)
+        public Command(long frame, int type, string data,long time)
         {
             mID = GUID.Int64();
             mFrame = frame;
@@ -27,10 +29,10 @@ namespace FrameServer
             mTime = time;
         }
 
-        public void Set<T>(CommandID type, T t) where T : class, ProtoBuf.IExtensible
+        public void Set<T>(string eventType, T t) where T : class, ProtoBuf.IExtensible
         {
-            mType = (int)type;
-            mData = JsonSerializerUtil.ToJsonByte<T>(t);
+            this.eventType = eventType;
+            mData = JsonSerializerUtil.ToJson<T>(t);
             //ProtoTransfer.SerializeProtoBuf<T>(t);
         }
 
