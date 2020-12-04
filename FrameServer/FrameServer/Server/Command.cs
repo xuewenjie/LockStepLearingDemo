@@ -29,12 +29,7 @@ namespace FrameServer
             mTime = time;
         }
 
-        public void Set<T>(string eventType, T t) where T : class, ProtoBuf.IExtensible
-        {
-            this.eventType = eventType;
-            mData = JsonSerializerUtil.ToJson<T>(t);
-            //ProtoTransfer.SerializeProtoBuf<T>(t);
-        }
+        
 
         public void SetFrame(long frame, long time)
         {

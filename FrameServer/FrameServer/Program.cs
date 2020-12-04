@@ -94,7 +94,7 @@ namespace FrameServer
         void StartTimer()
         {
             //实例化Timer类，设置间隔时间为100毫秒；
-            System.Timers.Timer t = new System.Timers.Timer(100);
+            System.Timers.Timer t = new System.Timers.Timer(50);
             //到达时间的时候执行事件；
             t.Elapsed += new System.Timers.ElapsedEventHandler(LogicFrame);
             t.AutoReset = true;//设置是执行一次（false）还是一直执行(true)；
@@ -343,7 +343,8 @@ namespace FrameServer
             if (mBegin == false)
             {
                 //所有的玩家都准备好了，可以开始同步
-                if (readyCount >= mUserList.Count)
+                if (readyCount == 2)
+                //if (readyCount >= mUserList.Count)
                 {
                     mFrameDic = new Dictionary<long, Dictionary<int, List<Command>>>();
 
