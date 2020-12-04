@@ -323,14 +323,15 @@ namespace FrameServer
             for (int i = 0; i < mUserList.Count; ++i)
             {
                 var user = mUserList[i];
-                if (recvData.roleId == user.roleid && client == user.client)
-                {
-                    user.position = ProtoTransfer.Get(recvData.position);
-                    user.direction = ProtoTransfer.Get(recvData.direction);
-                    user.SetReady();
-                }
+                //if (recvData.roleId == user.roleid && client == user.client)
+                //{
+                //    user.position = ProtoTransfer.Get(recvData.position);
+                //    user.direction = ProtoTransfer.Get(recvData.direction);
+                //    user.SetReady();
+                //}
                 //广播玩家准备（包括自己）
-                user.SendTcp(MessageID.GM_READY_BC, recvData);
+                //BroadCast(MessageID.GM_BEGIN_BC, recvData, true);
+                //user.SendTcp(MessageID.GM_READY_BC, recvData);
 
                 if (user.ready)
                 {
@@ -346,6 +347,25 @@ namespace FrameServer
                 if (readyCount == 2)
                 //if (readyCount >= mUserList.Count)
                 {
+                    for (int i = 0; i < mUserList.Count; ++i)
+                    {
+                        var user = mUserList[i];
+                        //if (recvData.roleId == user.roleid && client == user.client)
+                        //{
+                        //    user.position = ProtoTransfer.Get(recvData.position);
+                        //    user.direction = ProtoTransfer.Get(recvData.direction);
+                        //    user.SetReady();
+                        //}
+                        //广播玩家准备（包括自己）
+                        BroadCast(MessageID.GM_BEGIN_BC, recvData, true);
+                        //user.SendTcp(MessageID.GM_READY_BC, recvData);
+
+                        //if (user.ready)
+                        //{
+                        //    readyCount++;
+                        //}
+                    }
+
                     mFrameDic = new Dictionary<long, Dictionary<int, List<Command>>>();
 
                     GM_Begin sendData = new GM_Begin();
