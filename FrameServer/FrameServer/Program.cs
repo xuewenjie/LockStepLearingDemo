@@ -323,12 +323,12 @@ namespace FrameServer
             for (int i = 0; i < mUserList.Count; ++i)
             {
                 var user = mUserList[i];
-                //if (recvData.roleId == user.roleid && client == user.client)
-                //{
-                //    user.position = ProtoTransfer.Get(recvData.position);
-                //    user.direction = ProtoTransfer.Get(recvData.direction);
-                //    user.SetReady();
-                //}
+                if (recvData.roleId == user.roleid && client == user.client)
+                {
+                    user.position = ProtoTransfer.Get(recvData.position);
+                    user.direction = ProtoTransfer.Get(recvData.direction);
+                    user.SetReady();
+                }
                 //广播玩家准备（包括自己）
                 //BroadCast(MessageID.GM_BEGIN_BC, recvData, true);
                 //user.SendTcp(MessageID.GM_READY_BC, recvData);
@@ -350,6 +350,8 @@ namespace FrameServer
                     for (int i = 0; i < mUserList.Count; ++i)
                     {
                         var user = mUserList[i];
+                        GM_Ready gm_Ready = new GM_Ready();
+                        gm_Ready.roleId = user.roleid;
                         //if (recvData.roleId == user.roleid && client == user.client)
                         //{
                         //    user.position = ProtoTransfer.Get(recvData.position);
@@ -357,8 +359,8 @@ namespace FrameServer
                         //    user.SetReady();
                         //}
                         //广播玩家准备（包括自己）
-                        BroadCast(MessageID.GM_BEGIN_BC, recvData, true);
-                        //user.SendTcp(MessageID.GM_READY_BC, recvData);
+                        BroadCast(MessageID.GM_READY_BC, gm_Ready, true);
+                        //user.SendTcp(MessageID.GM_READY_BC, gm_Ready);
 
                         //if (user.ready)
                         //{
