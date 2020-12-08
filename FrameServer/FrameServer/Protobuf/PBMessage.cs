@@ -9,6 +9,8 @@
 
 // Generated from: command.txt
 // Note: requires additional types generated from: scene.txt
+using System.Collections.Generic;
+
 namespace PBMessage
 {
   [global::System.Serializable, global::ProtoBuf.ProtoContract(Name=@"CMD_ReleaseSkill")]
@@ -142,8 +144,9 @@ namespace PBMessage
             
       [global::ProtoBuf.ProtoEnum(Name=@"MinValue", Value=0)]
       MinValue = 0,
-            
-      [global::ProtoBuf.ProtoEnum(Name=@"GM_ACCEPT_SC", Value=98)]
+
+        GM_HEART_CS = 1,
+        [global::ProtoBuf.ProtoEnum(Name=@"GM_ACCEPT_SC", Value=98)]
       GM_ACCEPT_SC = 98,
             
       [global::ProtoBuf.ProtoEnum(Name=@"GM_ACCEPT_CS", Value=99)]
@@ -400,6 +403,7 @@ namespace PBMessage
     public GM_Connect() {}
     
     private int _roleId;
+        
     [global::ProtoBuf.ProtoMember(1, IsRequired = true, Name=@"roleId", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
     public int roleId
     {
@@ -598,21 +602,14 @@ namespace PBMessage
       { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
   }
   
-  [global::System.Serializable, global::ProtoBuf.ProtoContract(Name=@"GM_Begin")]
-  public partial class GM_Begin : global::ProtoBuf.IExtensible
+  public class GM_Begin 
   {
     public GM_Begin() {}
-    
-    private int _result;
-    [global::ProtoBuf.ProtoMember(1, IsRequired = true, Name=@"result", DataFormat = global::ProtoBuf.DataFormat.TwosComplement)]
-    public int result
-    {
-      get { return _result; }
-      set { _result = value; }
-    }
-    private global::ProtoBuf.IExtension extensionObject;
-    global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
-      { return global::ProtoBuf.Extensible.GetExtensionObject(ref extensionObject, createIfMissing); }
+
+        public List<int> roleIdList { get; set; }
+        public int randSeed { get; set; }
+
+        
   }
   
 }

@@ -11,75 +11,39 @@ namespace FrameServer
     {
         static void Main(string[] args)
         {
-            Program p = new Program();
+            Debug.ENABLE_ERROR = true;
 
+            Program p = new Program();
             while (true)
             {
-                p.Update();
+                p.ReceiveMessage();
             }
-
         }
-        
 
         public const int TCP_PORT = 1255;
-        public const int UDP_PORT = 1337;
 
-       
-
-        public const int FRAME_INTERVAL = 100; //帧时间 毫秒
+        public const int FRAME_INTERVAL = 66; //帧时间 每隔多少毫秒发送驱动帧
 
         NetworkService mService;
 
-        private int mRoleId = 100; //客户端的人物开始id
-        private int mMonsterId = 100000; //客户端怪物开始id
-        private const int SERVER_ROLEID = 0; //服务器也参与整局游戏，负责发送一些全局命令，比如Buff、怪物生成
-
         List<User> mUserList = new List<User>();
-        List<Monster> mMonsterList = new List<Monster>();
-
         Dictionary<long, Dictionary<int, List<Command>>> mFrameDic = new Dictionary<long, Dictionary<int, List<Command>>>();//关键帧
 
         private bool mBegin = false;    //游戏是否开始
 
         private long mCurrentFrame = 1; //当前帧数
         private long mFrameTime = 0;
-      
 
-        public enum Mode
-        {
-            LockStep,
-            Optimistic,
-        }
-
-        public enum Protocol
-        {
-            UDP,
-            KCP,
-        }
-
-        private Mode mMode = Mode.LockStep;
-        private Protocol mProtocol = Protocol.UDP;
 
         public Program()
         {
+            
+
             MessageBuffer.MESSAGE_MAX_VALUE = (int)MessageID.MaxValue;
             MessageBuffer.MESSAGE_MIN_VALUE = (int)MessageID.MinValue;
-
-            //Debug.Log("1. lockstep mode.");
-            //Debug.Log("2. optimistic mode.");
-            //mMode = Console.ReadLine() == "1" ? Mode.LockStep : Mode.Optimistic;
-
-            mMode = Mode.Optimistic;
-             //Debug.Log("1. use udp.");
-             //Debug.Log("2. use kcp.");
-
-            //mProtocol = Console.ReadLine() == "1" ? Protocol.UDP : Protocol.KCP;
-            //mProtocol = Protocol.KCP;
-            mProtocol = Protocol.KCP;
-            mService = new NetworkService(TCP_PORT, UDP_PORT, mProtocol == Protocol.KCP);
-
-            Debug.ENABLE_ERROR = true;
-
+            
+            mService = new NetworkService(TCP_PORT);
+            
             mService.onStart += OnStart;
             mService.onAccept += OnAccept;
             mService.onMessage += OnMessage;
@@ -93,14 +57,19 @@ namespace FrameServer
 
         void StartTimer()
         {
-            //实例化Timer类，设置间隔时间为100毫秒；
-            System.Timers.Timer t = new System.Timers.Timer(50);
+            //实例化Timer类，设置间隔时间为100毫秒
+            System.Timers.Timer t = new System.Timers.Timer(FRAME_INTERVAL);
             //到达时间的时候执行事件；
             t.Elapsed += new System.Timers.ElapsedEventHandler(LogicFrame);
             t.AutoReset = true;//设置是执行一次（false）还是一直执行(true)；
             t.Enabled = true;//是否执行System.Timers.Timer.Elapsed事件；
         }
 
+        /// <summary>
+        /// 发送驱动帧和关键帧
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void LogicFrame(object sender, ElapsedEventArgs e)
         {
             if (mBegin)
@@ -108,7 +77,6 @@ namespace FrameServer
                 mFrameTime += 1;
                 SendFrame();
             }
-               
         }
 
         /// <summary>
@@ -118,7 +86,7 @@ namespace FrameServer
         /// <param name="msaageId"></param>
         /// <param name="data"></param>
         /// <param name="ready">是否只发给已经准备好的人</param>
-        void BroadCast<T>(MessageID msaageId, T data, bool ready = false) where T : class, ProtoBuf.IExtensible
+        void BroadCast<T>(MessageID msaageId, T data, bool ready = false) 
         {
             for (int i = 0; i < mUserList.Count; ++i)
             {
@@ -140,49 +108,18 @@ namespace FrameServer
             }
             return null;
         }
-
-        int _lastCmdTime_ms = 0;
-
-        public void Update()
-        {
-            
-            mService.Update();
-
-            if (mBegin)
-            {
-                
-                
-
-                //Thread.Sleep(1);
-
-                ////mFrameTime += 1;
-
-                ////if (mMode == Mode.Optimistic)
-                ////{
-                    
-                ////    if (mFrameTime % FRAME_INTERVAL == 0)
-                ////    {
-                ////        SendFrame();
-                ////    }
-                ////}
-            }
-        }
         
-
 
         private void OnStart()
         {
-            Debug.Log(string.Format("Server start success,mode={0} ip={1} tcp port={2} udp port={3}",mMode.ToString(), NetworkService.GetLocalIP(),TCP_PORT, UDP_PORT),ConsoleColor.Green);
-            
+            Debug.Log(string.Format("Server start success, ip={0} tcp port={1} ",NetworkService.GetLocalIP(),TCP_PORT),ConsoleColor.Green);
         }
 
         private void OnAccept(Session c)
         {
             GM_Accept sendData = new GM_Accept();
             sendData.conv = c.id;
-            sendData.protocol = (int)mProtocol;
-
-            //byte[] data = ProtoTransfer.SerializeProtoBuf(sendData);
+            
             byte[] data = JsonSerializerUtil.ToJsonByte(sendData);
             MessageBuffer message = new MessageBuffer((int)MessageID.GM_ACCEPT_SC, data, c.id);
 
@@ -198,9 +135,9 @@ namespace FrameServer
 
             GM_Connect sendData = new GM_Connect();
             sendData.roleId = user.roleid;
+            
             sendData.frameinterval = FRAME_INTERVAL; //告诉客户端帧时长 毫秒
-            sendData.mode = (int)mMode;              //告诉客户端当前模式
-            sendData.player = ProtoTransfer.Get(user.mPlayerInfo);
+            //sendData.player = ProtoTransfer.Get(user.mPlayerInfo);
 
             user.SendTcp(MessageID.GM_CONNECT_SC, sendData);
 
@@ -221,70 +158,15 @@ namespace FrameServer
                 if (c != u.client)
                 {
                     sendData.roleId = u.roleid;
-                    sendData.player = ProtoTransfer.Get(u.mPlayerInfo);
+                    //sendData.player = ProtoTransfer.Get(u.mPlayerInfo);
                     //发给自己
                     user.SendTcp(MessageID.GM_CONNECT_BC, sendData);
                 }
             }
 
         }
-
-        private void OnMessage(Session client, MessageBuffer msg)
-        {
-            MessageID messageId = (MessageID)msg.id();
-            switch (messageId)
-            {
-                case MessageID.GM_ACCEPT_CS:
-                    {
-                        GM_Accept recvData = JsonSerializerUtil.FromJsonByte<GM_Accept>(msg.body());
-                        //ProtoTransfer.DeserializeProtoBuf<GM_Accept>(msg);
-                        if (recvData.conv == client.id)
-                        {
-                            OnConnect(client,recvData.roleId);
-                        }
-                    }
-                    break;
-                case MessageID.GM_READY_CS:
-                    {
-                        GM_Ready recvData = JsonSerializerUtil.FromJsonByte<GM_Ready>(msg.body());
-                        //ProtoTransfer.DeserializeProtoBuf<GM_Ready>(msg);
-                        OnReceiveReady(client, recvData);
-
-                    }
-                    break;
-
-                case MessageID.GM_FRAME_CS:
-                    {
-                        GM_Frame recvData = JsonSerializerUtil.FromJsonByte<GM_Frame>(msg.body());
-                        //ProtoTransfer.DeserializeProtoBuf<GM_Frame>(msg);
-                        if (mMode == Mode.LockStep)
-                        {
-                            OnLockStepFrame(client, recvData);
-                        }
-                        else
-                        {
-                            OnOptimisticFrame(client, recvData);
-                        }
-                    }
-                    break;
-                case MessageID.GM_PING_CS:
-                    {
-                        GM_Request recvData = JsonSerializerUtil.FromJsonByte<GM_Request>(msg.body());
-                        //ProtoTransfer.DeserializeProtoBuf<GM_Request>(msg);
-                        User u = GetUser(recvData.id);
-                        if(u !=null)
-                        {
-                            GM_Return sendData = new GM_Return();
-                            sendData.id = recvData.id;
-                            u.SendTcp(MessageID.GM_PING_SC, sendData);
-                        }
-                    }
-                    break;
-
-            }
-        }
-
-      
+        
+        
         private void OnDisconnect(Session c)
         {
             if (c == null) return;
@@ -304,6 +186,9 @@ namespace FrameServer
                 }
             }
             Debug.Log(string.Format("{0} roleid={1}  disconnected!", id, roleId), ConsoleColor.Red);
+            
+            //如果列表内的准备人数为零了 就表示游戏没人玩，那么结束该局游戏
+
 
             GM_Disconnect sendData = new GM_Disconnect();
             sendData.roleId = roleId;
@@ -311,13 +196,80 @@ namespace FrameServer
             BroadCast(MessageID.GM_DISCONNECT_BC, sendData);
         }
 
-        private void OnDebug(string s)
+        #region 消息接收处理
+
+        public void ReceiveMessage()
         {
-            Debug.Log(s, ConsoleColor.Red);
+            mService.Update();
+            Thread.Sleep(1);
         }
 
+
+        private void OnMessage(Session client, MessageBuffer msg)
+        {
+            MessageID messageId = (MessageID)msg.id();
+            switch (messageId)
+            {
+                case MessageID.GM_HEART_CS:
+                    client.RefreshHeartTime();
+                    Debug.Log("收到心跳包！");
+                    break;
+                case MessageID.GM_ACCEPT_CS:
+                    {
+                        GM_Accept recvData = JsonSerializerUtil.FromJsonByte<GM_Accept>(msg.body());
+                        //ProtoTransfer.DeserializeProtoBuf<GM_Accept>(msg);
+                        if (recvData.conv == client.id)
+                        {
+                            OnConnect(client, recvData.roleId);
+                        }
+                    }
+                    break;
+                case MessageID.GM_READY_CS:
+                    {
+                        GM_Ready recvData = JsonSerializerUtil.FromJsonByte<GM_Ready>(msg.body());
+                        //ProtoTransfer.DeserializeProtoBuf<GM_Ready>(msg);
+                        OnReceiveReady(client, recvData);
+
+                    }
+                    break;
+
+                case MessageID.GM_FRAME_CS:
+                    {
+                        GM_Frame recvData = JsonSerializerUtil.FromJsonByte<GM_Frame>(msg.body());
+                        OnOptimisticFrame(client, recvData);
+                    }
+                    break;
+                case MessageID.GM_PING_CS:
+                    {
+                        GM_Request recvData = JsonSerializerUtil.FromJsonByte<GM_Request>(msg.body());
+                        //ProtoTransfer.DeserializeProtoBuf<GM_Request>(msg);
+                        User u = GetUser(recvData.id);
+                        if (u != null)
+                        {
+                            GM_Return sendData = new GM_Return();
+                            sendData.id = recvData.id;
+                            u.SendTcp(MessageID.GM_PING_SC, sendData);
+                        }
+                    }
+                    break;
+
+            }
+        }
+        #endregion
+
+        #region 收到准备后的处理
+        /// <summary>
+        /// 收到准备后的处理
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="recvData"></param>
         private void OnReceiveReady(Session client, GM_Ready recvData)
         {
+            if (mBegin)
+            {
+                //游戏已经开始，不能中途进入游戏，后面再这里加断线重连逻辑看看
+                return;
+            }
             if (recvData == null || client == null) return;
             int readyCount = 0;
             for (int i = 0; i < mUserList.Count; ++i)
@@ -325,10 +277,11 @@ namespace FrameServer
                 var user = mUserList[i];
                 if (recvData.roleId == user.roleid && client == user.client)
                 {
-                    user.position = ProtoTransfer.Get(recvData.position);
-                    user.direction = ProtoTransfer.Get(recvData.direction);
+                    
                     user.SetReady();
                 }
+
+                BroadCast(MessageID.GM_READY_BC, recvData, true);
                 //广播玩家准备（包括自己）
                 //BroadCast(MessageID.GM_BEGIN_BC, recvData, true);
                 //user.SendTcp(MessageID.GM_READY_BC, recvData);
@@ -347,8 +300,16 @@ namespace FrameServer
                 if (readyCount == 2)
                 //if (readyCount >= mUserList.Count)
                 {
+                    GM_Begin sendData = new GM_Begin();
+                    sendData.roleIdList = new List<int>();
+                    sendData.randSeed = 12345;
                     for (int i = 0; i < mUserList.Count; ++i)
                     {
+                        if (mUserList[i].ready)
+                        {
+                            sendData.roleIdList.Add(mUserList[i].roleid);
+                        }
+                        
                         var user = mUserList[i];
                         GM_Ready gm_Ready = new GM_Ready();
                         gm_Ready.roleId = user.roleid;
@@ -359,7 +320,7 @@ namespace FrameServer
                         //    user.SetReady();
                         //}
                         //广播玩家准备（包括自己）
-                        BroadCast(MessageID.GM_READY_BC, gm_Ready, true);
+                        
                         //user.SendTcp(MessageID.GM_READY_BC, gm_Ready);
 
                         //if (user.ready)
@@ -368,12 +329,16 @@ namespace FrameServer
                         //}
                     }
 
+                    
+
                     mFrameDic = new Dictionary<long, Dictionary<int, List<Command>>>();
 
-                    GM_Begin sendData = new GM_Begin();
-                    sendData.result = 0;
+                    //GM_Begin sendData = new GM_Begin();
+                    //sendData.result = 0;
 
                     BroadCast(MessageID.GM_BEGIN_BC, sendData, true);
+
+                    //BroadCast(MessageID.GM_BEGIN_BC, sendData, true);
 
                     BeginGame();
 
@@ -382,42 +347,43 @@ namespace FrameServer
             
             else //断线重连
             {           
-                User user = GetUser(recvData.roleId);
-                if(user!=null)
-                {
-                    GM_Begin sendData = new GM_Begin();
-                    sendData.result = 0;
-
-                    user.SendTcp(MessageID.GM_BEGIN_BC, sendData);
-
-                    /*
-                    GM_Frame_BC frameData = new GM_Frame_BC();
+                //User user = GetUser(recvData.roleId);
+                //if(user!=null)
+                //{
+                //    GM_Begin sendData = new GM_Begin();
                     
-                    //给他发送当前帧之前的数据
-                    for (long frame = 1; frame < mCurrentFrame - 1; ++frame)
-                    {
-                        if (mFrameDic.ContainsKey(frame))
-                        {
-                            frameData.frame = frame;
-                            frameData.frametime = 0;
-                            var it = mFrameDic[frame].GetEnumerator();
-                            while (it.MoveNext())
-                            {
-                                for (int i = 0, count = it.Current.Value.Count; i < count; ++i)
-                                {
-                                    GMCommand cmd = ProtoTransfer.Get(it.Current.Value[i]);
 
-                                    frameData.command.Add(cmd);
-                                }
-                            }
-                            user.SendUdp(MessageID.GM_FRAME_BC, frameData);
-                        }
-                    }
-                    */
-                }
+                //    user.SendTcp(MessageID.GM_BEGIN_BC, sendData);
+
+                //    /*
+                //    GM_Frame_BC frameData = new GM_Frame_BC();
+                    
+                //    //给他发送当前帧之前的数据
+                //    for (long frame = 1; frame < mCurrentFrame - 1; ++frame)
+                //    {
+                //        if (mFrameDic.ContainsKey(frame))
+                //        {
+                //            frameData.frame = frame;
+                //            frameData.frametime = 0;
+                //            var it = mFrameDic[frame].GetEnumerator();
+                //            while (it.MoveNext())
+                //            {
+                //                for (int i = 0, count = it.Current.Value.Count; i < count; ++i)
+                //                {
+                //                    GMCommand cmd = ProtoTransfer.Get(it.Current.Value[i]);
+
+                //                    frameData.command.Add(cmd);
+                //                }
+                //            }
+                //            user.SendUdp(MessageID.GM_FRAME_BC, frameData);
+                //        }
+                //    }
+                //    */
+                //}
             }
             
         }
+        
 
         private void BeginGame()
         {
@@ -427,135 +393,20 @@ namespace FrameServer
 
             mFrameTime = 0;
             
-            CreateMonster();
         }
-        void CreateMonster()
+
+        private void StopGame()
         {
-            //服务器添加命令
+            mCurrentFrame = 1;
 
-            //for (int i = 0; i < 3; ++i)
-            //{
+            mBegin = false; //游戏结束
 
-            //    Monster monster = new Monster(mMonsterId++);
-            //    mMonsterList.Add(monster);
-
-            //    monster.mPlayerInfo.name = "Server " + monster.roleid;
-            //    monster.mPlayerInfo.type = 2;//Boss
-
-            //    monster.position.x = ((i + 1) * (i % 2 == 0 ? -3 : 3)) * 10000;
-            //    monster.position.y = 1 * 10000;
-            //    monster.position.z = -10 * 10000;
-
-            //    CMD_CreateMonster data = new CMD_CreateMonster();
-            //    data.roleId = SERVER_ROLEID;
-            //    data.player = ProtoTransfer.Get(monster.mPlayerInfo);
-            //    data.position = ProtoTransfer.Get(monster.position);
-            //    data.direction = ProtoTransfer.Get(monster.direction);
-
-            //    Command cmd = new Command();
-            //    cmd.Set(CommandID.CREATE_MONSTER, data);
-
-            //    AddCommand(cmd);
-            //}
-
+            mFrameTime = 0;
         }
-
-        /// <summary>
-        /// 服务器添加一个命令
-        /// </summary>
-        void AddCommand(Command cmd)
-        {
-            if (cmd == null)
-            {
-                return;
-            }
-
-            if (mFrameDic.ContainsKey(mCurrentFrame) == false)
-            {
-                mFrameDic[mCurrentFrame] = new Dictionary<int, List<Command>>();
-            }
-
-           
-            cmd.SetFrame(mCurrentFrame, mFrameTime);
-
-            if (mFrameDic[mCurrentFrame].ContainsKey(SERVER_ROLEID) == false)
-            {
-                mFrameDic[mCurrentFrame].Add(SERVER_ROLEID, new List<Command>());
-            }
-            mFrameDic[mCurrentFrame][SERVER_ROLEID].Add(cmd);
-
-        }
-
-        #region LockStep
-
-        private void OnLockStepFrame(Session client, GM_Frame recvData)
-        {
-            long frame = recvData.frame;
-            int roleId = recvData.roleId;
-
-            if (recvData.command.Count > 0 || frame % 30 == 0)
-            {
-                Debug.Log(string.Format("Receive {0} serverframe:{1} clientframe:{2} command:{3}", roleId, mCurrentFrame, frame, recvData.command.Count), ConsoleColor.DarkGray);
-            }
-            if (mFrameDic.ContainsKey(frame) == false)
-            {
-                mFrameDic.Add(frame, new Dictionary<int, List<Command>>());
-            }
-
-            var frames = mFrameDic[frame];
-
-            //当前帧的服务器命令
-            if (frames.ContainsKey(SERVER_ROLEID)==false)
-            {
-                frames.Add(SERVER_ROLEID, new List<Command>());
-            }
-
-            //该玩家是否发送了当前帧
-            if (frames.ContainsKey(roleId) == false)
-            {
-                frames.Add(roleId, new List<Command>());
-            }
-
-            for (int i = 0; i < recvData.command.Count; ++i)
-            {
-                Command cmd = new Command(recvData.command[i].frame, recvData.command[i].type, recvData.command[i].data, recvData.command[i].frametime);
-
-                frames[roleId].Add(cmd);
-            }
-
-            //当所有玩家都发送了该帧，就可以广播了
-            //减去1是因为服务器命令也在当前帧中
-            if (frames.Count - 1 >= mUserList.Count)
-            {
-                GM_Frame_BC sendData = new GM_Frame_BC();
-                sendData.frame = frame;
-                sendData.frametime = mFrameTime;
-                var it = frames.GetEnumerator();
-                while(it.MoveNext())
-                {
-                    for(int i = 0,count = it.Current.Value.Count; i < count; ++i)
-                    {
-                        GMCommand cmd = ProtoTransfer.Get(it.Current.Value[i]);
-                      
-                        sendData.command.Add(cmd);
-                    }
-                }
-
-
-                BroadCast(MessageID.GM_FRAME_BC, sendData, true);
-
-                mCurrentFrame = frame + 1;
-            }
-            else
-            {
-                Debug.Log(string.Format("Waiting {0} frame:{1} count:{2} current:{3} ", roleId, frame, mFrameDic[frame].Count, mUserList.Count),ConsoleColor.Red);
-            }
-        }
-
         #endregion
 
         #region 乐观模式
-       
+
         /// <summary>
         /// 按固定频率向客户端广播帧
         /// </summary>
@@ -624,6 +475,10 @@ namespace FrameServer
 
         #endregion
 
+        private void OnDebug(string s)
+        {
+            Debug.Log(s, ConsoleColor.Red);
+        }
 
     }
 }

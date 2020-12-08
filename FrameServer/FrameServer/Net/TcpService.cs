@@ -21,8 +21,7 @@ namespace Network
 
         public bool IsActive { get { return Active; } }
 
-
-        public event OnReceiveHandler onReceive;
+        
         public event OnAcceptHandler onAccept;
 
         public TcpService(NetworkService service, int port) : base(IPAddress.Any, port)
@@ -93,7 +92,6 @@ namespace Network
                 try
                 {
                     Socket s = AcceptSocket();
-                    //Socket s = AcceptTcpClient();
                     if (s != null)
                     {
                         if (onAccept != null)
@@ -112,84 +110,7 @@ namespace Network
 
             }
         }
-
-        void ReceiveThread()
-        {
-            
-            while (IsActive)
-            {
-                var sessions = mService.sessions;
-                for(int i = 0; i < sessions.Count; ++i)
-                {
-                    Session c = sessions[i];
-                    if(c == null)
-                    {
-                        continue;
-                    }
-                    try
-                    {
-                        if (c.IsConnected == false)
-                        {
-                            continue;
-                        }
-
-                        int receiveSize = c.socket.Receive(MessageBuffer.head, MessageBuffer.MESSAGE_HEAD_SIZE, SocketFlags.None);
-                        if (receiveSize == 0)
-                        {
-                            continue;
-                        }
-
-                        if (receiveSize != MessageBuffer.MESSAGE_HEAD_SIZE)
-                        {
-                            continue;
-                        }
-                       
-                        if (MessageBuffer.IsValid(MessageBuffer.head) == false)
-                        {
-                            continue;
-                        }
-                        int bodySize = 0;
-                        if (MessageBuffer.Decode(MessageBuffer.head, MessageBuffer.MESSAGE_BODY_SIZE_OFFSET, ref bodySize) == false)
-                        {
-                            continue;
-                        }
-                        MessageBuffer message = new MessageBuffer(MessageBuffer.MESSAGE_HEAD_SIZE + bodySize);
-
-                        Array.Copy(MessageBuffer.head, 0, message.buffer, 0, MessageBuffer.head.Length);
-
-                        if (bodySize > 0)
-                        {
-                            int receiveBodySize = c.socket.Receive(message.buffer, MessageBuffer.MESSAGE_BODY_OFFSET, bodySize, SocketFlags.None);
-
-                            if (receiveBodySize != bodySize)
-                            {
-                                continue;
-                            }
-                        }
-
-                        if (onReceive != null)
-                        {
-                            onReceive(new MessageInfo(message, c));
-                        }
-                        
-
-                    }
-                    catch (SocketException e)
-                    {
-                        mService.Debug(e.Message);
-                        c.Disconnect();
-                    }
-                    catch (Exception e)
-                    {
-                        mService.CatchException(e);
-                        throw e;
-                    }
-                }
-
-                Thread.Sleep(1);
-            }
-        }
-
+        
         void SendThread()
         {
             while (IsActive)
@@ -203,7 +124,11 @@ namespace Network
                         if (message == null) continue;
                         try
                         {
-                            message.session.socket.Send(message.buffer.buffer);
+                            if (message.session!=null&& message.session.socket!=null)
+                            {
+                                message.session.socket.Send(message.buffer.buffer);
+                            }
+                            
                         }
                         catch (SocketException e)
                         {

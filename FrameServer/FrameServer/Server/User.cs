@@ -61,7 +61,7 @@ namespace FrameServer
 
        
 
-        public void SendTcp<T>(MessageID messageId, T t) where T : class, ProtoBuf.IExtensible
+        public void SendTcp<T>(MessageID messageId, T t) 
         {
             if (mClient != null)
             {

@@ -57,7 +57,7 @@ namespace Network
 
         public TcpService tcp { get { return mTcp; } }
 
-        public NetworkService(int tcp, int udp, bool kcp)
+        public NetworkService(int tcp)
         {
             mTcp = new TcpService(this, tcp);
         }
@@ -76,8 +76,6 @@ namespace Network
             try
             {
                 mTcp.Listen();
-                
-                mTcp.onReceive += OnReceive;
                 mTcp.onAccept += OnAccept;
                 onStart();
             }
@@ -189,8 +187,8 @@ namespace Network
 
         void OnAccept(Socket s)
         {
-            Session c = new Session(numberOfClient++, s, this);
-            c.onReceive += OnReceive;
+            Session c = new Session(numberOfClient++, s, OnReceive, this);
+            //c.onReceive += OnReceive;
 
             lock (mSessionList)
             {

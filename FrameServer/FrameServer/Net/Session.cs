@@ -21,74 +21,44 @@ namespace Network
         public Socket socket { get { return mSocket; } }
         public NetworkService service { get { return mService; } }
 
-        //private KCP mKCP;
-        private uint mNextUpdateTime = 0;
-        private static readonly DateTime utc_time = new DateTime(1970, 1, 1);
-
         public event OnReceiveHandler onReceive;
 
-        private static uint current
-        {
-            get
-            {
-                return (uint)(Convert.ToInt64(DateTime.UtcNow.Subtract(utc_time).TotalMilliseconds) & 0xffffffff);
-            }
-        }
+        public DateTime lastOnLine;
 
-  
-        
-
-        public Session(int id, Socket sock, NetworkService serv)
+        public Session(int id, Socket sock, OnReceiveHandler onReceive, NetworkService serv)
         {
             mID = id;
             mService = serv;
             mSocket = sock;
 
             tcpAdress = (IPEndPoint)sock.RemoteEndPoint;
-            mActiveThread = new Thread(ActiveThread);
 
+            this.onReceive = onReceive;
+            RefreshHeartTime();
+
+            mActiveThread = new Thread(ActiveThread);
             mActiveThread.Start();
 
             mReceiveThread = new Thread(ReceiveThread);
             mReceiveThread.Start();
-            //if (mService.kcp!=null)
-            //{
-            //    mKCP = new KCP((uint)id, OnSendKcp);
-            //    mKCP.NoDelay(1, 10, 2, 1);
-            //}
+
+            
         }
 
         private void ReceiveThread()
         {
             while (IsConnected)
             {
-                Session c = this;
-                if (c == null)
-                {
-                    continue;
-                }
                 try
                 {
-                    if (c.IsConnected == false)
+                    int receiveSize = socket.Receive(MessageBuffer.head, MessageBuffer.MESSAGE_HEAD_SIZE, SocketFlags.None);
+                    //收到的字节数不是预定的消息头的长度的话，或者消息头的结构定义不正确的话，那么这条消息是不正确的
+                    if (receiveSize == 0|| receiveSize != MessageBuffer.MESSAGE_HEAD_SIZE|| MessageBuffer.IsValid(MessageBuffer.head) == false)
                     {
                         continue;
                     }
 
-                    int receiveSize = c.socket.Receive(MessageBuffer.head, MessageBuffer.MESSAGE_HEAD_SIZE, SocketFlags.None);
-                    if (receiveSize == 0)
-                    {
-                        continue;
-                    }
-
-                    if (receiveSize != MessageBuffer.MESSAGE_HEAD_SIZE)
-                    {
-                        continue;
-                    }
-
-                    if (MessageBuffer.IsValid(MessageBuffer.head) == false)
-                    {
-                        continue;
-                    }
+                    //获取要获取的消息长度 ，bodySize返回
                     int bodySize = 0;
                     if (MessageBuffer.Decode(MessageBuffer.head, MessageBuffer.MESSAGE_BODY_SIZE_OFFSET, ref bodySize) == false)
                     {
@@ -96,29 +66,28 @@ namespace Network
                     }
                     MessageBuffer message = new MessageBuffer(MessageBuffer.MESSAGE_HEAD_SIZE + bodySize);
 
+                    //将接收的包头拷贝到message里
                     Array.Copy(MessageBuffer.head, 0, message.buffer, 0, MessageBuffer.head.Length);
 
+                    //接收包头
                     if (bodySize > 0)
                     {
-                        int receiveBodySize = c.socket.Receive(message.buffer, MessageBuffer.MESSAGE_BODY_OFFSET, bodySize, SocketFlags.None);
-
+                        int receiveBodySize = socket.Receive(message.buffer, MessageBuffer.MESSAGE_BODY_OFFSET, bodySize, SocketFlags.None);
                         if (receiveBodySize != bodySize)
                         {
                             continue;
                         }
                     }
-
+                    
                     if (onReceive != null)
                     {
-                        onReceive(new MessageInfo(message, c));
+                        onReceive(new MessageInfo(message, this));
                     }
-
-
                 }
                 catch (SocketException e)
                 {
                     mService.Debug(e.Message);
-                    c.Disconnect();
+                    Disconnect();
                 }
                 catch (Exception e)
                 {
@@ -132,11 +101,15 @@ namespace Network
 
         void ActiveThread()
         {
+            
             while (IsConnected)
             {
+                if ((DateTime.Now - lastOnLine).TotalMinutes > 0.1)
+                {
+                    break;
+                }
                 Thread.Sleep(1000);
             }
-
             Disconnect();
         }
 
@@ -146,6 +119,8 @@ namespace Network
             {
                 try
                 {
+                    
+
                     if (mSocket != null && mSocket.Connected)
                     {
                         return true;
@@ -166,22 +141,6 @@ namespace Network
             }
         }
 
-        public void SendUdp(MessageBuffer message) 
-        {
-            //if (mService != null)
-            //{
-            //    if (mService.kcp!=null)
-            //    {
-            //        SendKcp(message);
-            //    }
-            //    else if(mService.udp!=null)
-            //    {
-            //        mService.udp.Send(new MessageInfo( message, this));
-            //    }
-            //}
-        }
-
-       
         public void SendTcp(MessageBuffer message) 
         {
             if(mService!=null && mService.tcp !=null)
@@ -190,7 +149,12 @@ namespace Network
             }
         }
 
-       
+        public void RefreshHeartTime()
+        {
+            lastOnLine= DateTime.Now;
+        }
+
+
         public void Disconnect()
         {
             if (mSocket == null) return;
@@ -205,87 +169,7 @@ namespace Network
             mReceiveThread.Abort();
             mReceiveThread = null;
 
+            //this.onReceive -= onReceive;
         }
-
-  
-
-
-
-        //#region KCP
-        //private void SendKcp(MessageBuffer message)
-        //{
-        //    if (mKCP != null)
-        //    {
-        //        lock (mKCP)
-        //        {
-        //            mKCP.Send(message.buffer);
-        //            mNextUpdateTime = 0;//可以马上更新
-        //        }
-        //    }
-        //}
-        //public void UpdateKcp()
-        //{
-        //    //if (mKCP == null)
-        //    //{
-        //    //    return;
-        //    //}
-        //    //if (mService == null || mService.kcp == null || mService.kcp.IsActive == false)
-        //    //{
-        //    //    return;
-        //    //}
-
-        //    //uint time = current;
-        //    //if (time >= mNextUpdateTime)
-        //    //{
-        //    //    mKCP.Update(time);
-        //    //    mNextUpdateTime = mKCP.Check(time);
-        //    //}
-        //}
-
-        //private void OnSendKcp(byte[] data, int length)
-        //{
-        //    //try
-        //    //{
-        //    //    if (udpAdress!=null && mService != null && mService.kcp != null & mService.kcp.IsActive)
-        //    //    {
-        //    //        mService.kcp.Send(data, length, udpAdress);
-        //    //    }
-        //    //}
-        //    //catch (Exception e)
-        //    //{
-                
-        //    //}
-        //}
-
-        //public void OnReceiveKcp(byte[] data, IPEndPoint ip)
-        //{
-        //    if (mKCP == null)
-        //    {
-        //        return;
-        //    }
-        //    lock (mKCP)
-        //    {
-        //        mKCP.Input(data);
-
-        //        for (int size = mKCP.PeekSize(); size > 0; size = mKCP.PeekSize())
-        //        {
-        //            MessageBuffer message = new MessageBuffer(size);
- 
-        //            if (mKCP.Recv(message.buffer) > 0)
-        //            {
-        //                if (message.IsValid() && message.extra() == id)
-        //                {
-        //                    if (udpAdress == null || udpAdress.Equals(ip) == false)
-        //                    {
-        //                        udpAdress = ip;
-        //                    }
-        //                    mService.OnReceive(new MessageInfo(message, this));
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //}
-        //#endregion
     }
 }
