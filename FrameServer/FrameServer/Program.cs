@@ -22,7 +22,7 @@ namespace FrameServer
 
         public const int TCP_PORT = 1255;
 
-        public const int FRAME_INTERVAL = 66; //帧时间 每隔多少毫秒发送驱动帧
+        public const int FRAME_INTERVAL = 64; //帧时间 每隔多少毫秒发送驱动帧
 
         NetworkService mService;
 
@@ -34,6 +34,8 @@ namespace FrameServer
         private long mCurrentFrame = 1; //当前帧数
         private long mFrameTime = 0;
 
+        private Thread mAcceptThread;
+        private long lastSend;
 
         public Program()
         {
@@ -57,12 +59,42 @@ namespace FrameServer
 
         void StartTimer()
         {
-            //实例化Timer类，设置间隔时间为100毫秒
-            System.Timers.Timer t = new System.Timers.Timer(FRAME_INTERVAL);
-            //到达时间的时候执行事件；
-            t.Elapsed += new System.Timers.ElapsedEventHandler(LogicFrame);
-            t.AutoReset = true;//设置是执行一次（false）还是一直执行(true)；
-            t.Enabled = true;//是否执行System.Timers.Timer.Elapsed事件；
+            lastSend = 0;
+            mAcceptThread = new Thread(LogicFrame);
+            mAcceptThread.Start();
+            
+
+            ////实例化Timer类，设置间隔时间为100毫秒
+            //System.Timers.Timer t = new System.Timers.Timer(FRAME_INTERVAL);
+            ////到达时间的时候执行事件；
+            //t.Elapsed += new System.Timers.ElapsedEventHandler(LogicFrame);
+            //t.AutoReset = true;//设置是执行一次（false）还是一直执行(true)；
+            //t.Enabled = true;//是否执行System.Timers.Timer.Elapsed事件；
+        }
+
+        private void LogicFrame()
+        {
+            while (true)
+            {
+                if (mBegin)
+                {
+                    
+                    if (lastSend==0)
+                    {
+                        lastSend = DateTime.Now.Ticks;
+                    }
+                    if ((DateTime.Now.Ticks - lastSend) > 660000)
+                    {
+                        lastSend = lastSend+ 660000;
+                        //Debug.Log("DateTime.Now.Second=" + DateTime.Now.Second + ",DateTime.Now.Millisecond=" + DateTime.Now.Millisecond);
+                        mFrameTime += 1;
+                        SendFrame();
+                        Thread.Sleep(1);
+                    }
+
+                }
+            }
+            
         }
 
         /// <summary>
@@ -70,14 +102,15 @@ namespace FrameServer
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void LogicFrame(object sender, ElapsedEventArgs e)
-        {
-            if (mBegin)
-            {
-                mFrameTime += 1;
-                SendFrame();
-            }
-        }
+        //private void LogicFrame(object sender, ElapsedEventArgs e)
+        //{
+        //    if (mBegin)
+        //    {
+        //        Debug.Log("DateTime.Now.Second=" + DateTime.Now.Second+",DateTime.Now.Millisecond=" + DateTime.Now.Millisecond);
+        //        mFrameTime += 1;
+        //        SendFrame();
+        //    }
+        //}
 
         /// <summary>
         /// 广播消息
