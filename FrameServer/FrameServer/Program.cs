@@ -17,7 +17,10 @@ namespace FrameServer
             while (true)
             {
                 p.ReceiveMessage();
+                p.LogicFrame();
+                Thread.Sleep(1);
             }
+            
         }
 
         public const int TCP_PORT = 1255;
@@ -53,16 +56,17 @@ namespace FrameServer
             mService.onDebug += OnDebug;
 
             mService.Start();
-
+            lastSend = 0;
             StartTimer();
         }
 
         void StartTimer()
         {
-            lastSend = 0;
-            mAcceptThread = new Thread(LogicFrame);
-            mAcceptThread.Start();
-            
+            //LogicFrame();
+            //lastSend = 0;
+            //mAcceptThread = new Thread(LogicFrame);
+            //mAcceptThread.Start();
+
 
             ////实例化Timer类，设置间隔时间为100毫秒
             //System.Timers.Timer t = new System.Timers.Timer(FRAME_INTERVAL);
@@ -74,7 +78,7 @@ namespace FrameServer
 
         private void LogicFrame()
         {
-            while (true)
+            //while (true)
             {
                 if (mBegin)
                 {
@@ -85,11 +89,12 @@ namespace FrameServer
                     }
                     if ((DateTime.Now.Ticks - lastSend) > 660000)
                     {
+                        
                         lastSend = lastSend+ 660000;
                         //Debug.Log("DateTime.Now.Second=" + DateTime.Now.Second + ",DateTime.Now.Millisecond=" + DateTime.Now.Millisecond);
                         mFrameTime += 1;
                         SendFrame();
-                        Thread.Sleep(1);
+                        //Thread.Sleep(1);
                     }
 
                 }
@@ -234,7 +239,7 @@ namespace FrameServer
         public void ReceiveMessage()
         {
             mService.Update();
-            Thread.Sleep(1);
+            
         }
 
 
@@ -482,28 +487,31 @@ namespace FrameServer
 
         private void OnOptimisticFrame(Session client, GM_Frame recvData)
         {
-
-            int roleId = recvData.roleId;
-
-            long frame = recvData.frame;
-
-            Debug.Log(string.Format("Receive roleid={0} serverframe:{1} clientframe:{2} command:{3}", roleId, mCurrentFrame, frame,recvData.command.Count),ConsoleColor.DarkYellow);
             
-            if (mFrameDic.ContainsKey(mCurrentFrame) == false)
             {
-                mFrameDic[mCurrentFrame] = new Dictionary<int, List<Command>>();
-            }
-            for (int i = 0; i < recvData.command.Count; ++i)
-            {
-                //乐观模式以服务器收到的时间为准
-                Command frameData = new Command(recvData.command[i].frame, recvData.command[i].type, recvData.command[i].data, mFrameTime);
-                frameData.eventType = recvData.command[i].eventType;
-                if (mFrameDic[mCurrentFrame].ContainsKey(roleId) == false)
+                int roleId = recvData.roleId;
+
+                long frame = recvData.frame;
+
+                Debug.Log(string.Format("Receive roleid={0} serverframe:{1} clientframe:{2} command:{3}", roleId, mCurrentFrame, frame, recvData.command.Count), ConsoleColor.DarkYellow);
+
+                if (mFrameDic.ContainsKey(mCurrentFrame) == false)
                 {
-                    mFrameDic[mCurrentFrame].Add(roleId, new List<Command>());
+                    mFrameDic[mCurrentFrame] = new Dictionary<int, List<Command>>();
                 }
-                mFrameDic[mCurrentFrame][roleId].Add(frameData);
+                for (int i = 0; i < recvData.command.Count; ++i)
+                {
+                    //乐观模式以服务器收到的时间为准
+                    Command frameData = new Command(recvData.command[i].frame, recvData.command[i].type, recvData.command[i].data, mFrameTime);
+                    frameData.eventType = recvData.command[i].eventType;
+                    if (mFrameDic[mCurrentFrame].ContainsKey(roleId) == false)
+                    {
+                        mFrameDic[mCurrentFrame].Add(roleId, new List<Command>());
+                    }
+                    mFrameDic[mCurrentFrame][roleId].Add(frameData);
+                }
             }
+            
         }
 
         #endregion
